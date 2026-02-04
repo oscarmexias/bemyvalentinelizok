@@ -108,15 +108,16 @@ export default function PartyMode() {
   }
 
   const handleTakeMeThere = () => {
-    if (prizeInfo && userLocation) {
-      // Abrir Google Maps con la ruta al lugar
-      const query = encodeURIComponent(prizeInfo.place)
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${query}&travelmode=walking`
-      window.open(url, '_blank')
-    } else if (prizeInfo) {
-      // Si no hay ubicación, buscar el lugar
-      const query = encodeURIComponent(prizeInfo.place)
-      const url = `https://www.google.com/maps/search/?api=1&query=${query}`
+    if (prizeInfo) {
+      // Abrir Google Maps buscando el lugar cerca de la ubicación del usuario
+      const query = encodeURIComponent(`${prizeInfo.place} ${drinkType}`)
+      let url = `https://www.google.com/maps/search/?api=1&query=${query}`
+      
+      // Si tenemos ubicación del usuario, agregarla para mejorar la búsqueda
+      if (userLocation) {
+        url += `&center=${userLocation.lat},${userLocation.lng}`
+      }
+      
       window.open(url, '_blank')
     }
   }
@@ -148,12 +149,16 @@ export default function PartyMode() {
             color: 'var(--color-dark-red)',
             textShadow: '4px 4px 0px var(--color-rose)',
             marginBottom: '1rem',
+            marginTop: 'clamp(1rem, 3vw, 2rem)',
             textAlign: 'center',
             animation: 'dance 1s ease-in-out infinite',
             zIndex: 1001,
-            padding: '0 clamp(1rem, 4vw, 2rem)',
-            maxWidth: '100%',
+            padding: '0 clamp(1rem, 5vw, 3rem)',
+            maxWidth: 'calc(100% - 2rem)',
+            width: '100%',
+            boxSizing: 'border-box',
             wordWrap: 'break-word',
+            overflowWrap: 'break-word',
           }}
         >
           🎉 YAY! 🎉
@@ -403,13 +408,16 @@ export default function PartyMode() {
             color: 'var(--color-dark-red)',
             textShadow: '2px 2px 0px var(--color-rose)',
             marginTop: 'auto',
-            marginBottom: '2rem',
+            marginBottom: 'clamp(1rem, 3vw, 2rem)',
             textAlign: 'center',
             animation: 'dance 1.5s ease-in-out infinite',
             zIndex: 1001,
-            padding: '0 clamp(1rem, 4vw, 2rem)',
-            maxWidth: '100%',
+            padding: '0 clamp(1rem, 5vw, 3rem)',
+            maxWidth: 'calc(100% - 2rem)',
+            width: '100%',
+            boxSizing: 'border-box',
             wordWrap: 'break-word',
+            overflowWrap: 'break-word',
           }}
         >
           ¡FELIZ SAN VALENTÍN! 💕
