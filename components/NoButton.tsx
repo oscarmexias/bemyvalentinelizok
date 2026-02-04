@@ -1,167 +1,162 @@
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 
 export default function NoButton() {
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [originalPosition, setOriginalPosition] = useState({ x: 0, y: 0 })
+  const [velocity, setVelocity] = useState({ x: 0, y: 0 })
   const [attempts, setAttempts] = useState(0)
   const [isNearCursor, setIsNearCursor] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const returnTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const lastPositionRef = useRef({ x: 0, y: 0 })
+  const animationFrameRef = useRef<number>()
 
-  useEffect(() => {
-    // Calcular posición inicial (al lado del YES, centrado)
-    if (typeof window !== 'undefined' && buttonRef.current) {
-      const updatePosition = () => {
-        // El botón NO debe estar al lado del YES, así que usamos posición relativa
-        // En lugar de absolute, usaremos relative con transform
-        setOriginalPosition({ x: 0, y: 0 })
-        setPosition({ x: 0, y: 0 })
-      }
-      updatePosition()
-      window.addEventListener('resize', updatePosition)
-      return () => window.removeEventListener('resize', updatePosition)
-    }
-  }, [])
+  const x = useMotionValue(0)
+  const y = useMotionValue(0)
 
-  // Efecto para regresar al centro cuando no hay interacción
-  useEffect(() => {
-    if (!isNearCursor && (Math.abs(position.x) > 1 || Math.abs(position.y) > 1)) {
-      if (returnTimerRef.current) {
-        clearTimeout(returnTimerRef.current)
-      }
-      
-      const returnInterval = setInterval(() => {
-        setPosition((current) => {
-          const dx = 0 - current.x
-          const dy = 0 - current.y
-          const distance = Math.sqrt(dx * dx + dy * dy)
-          
-          // Si está muy cerca del centro, detener
-          if (distance < 2) {
-            clearInterval(returnInterval)
-            return { x: 0, y: 0 }
-          }
-          
-          // Regresar suavemente
-          return {
-            x: current.x + dx * 0.1,
-            y: current.y + dy * 0.1,
-          }
-        })
-      }, 50)
-      
-      returnTimerRef.current = returnInterval as any
-    } else if (isNearCursor && returnTimerRef.current) {
-      clearInterval(returnTimerRef.current)
-      returnTimerRef.current = null
-    }
+  // Spring physics para desaceleración suave
+  const springConfig = { 
+    damping: 15 + attempts * 2, // Aumenta resistencia con intentos
+    stiffness: 100 + attempts * 10,
+    mass: 0.5
+  }
 
-    return () => {
-      if (returnTimerRef.current) {
-        clearInterval(returnTimerRef.current)
-      }
-    }
-  }, [isNearCursor, position])
+  const springX = useSpring(x, springConfig)
+  const springY = useSpring(y, springConfig)
 
-  const calculatePosition = useCallback((clientX: number, clientY: number) => {
-    if (!buttonRef.current || !containerRef.current) return
+  const calculateRepulsion = useCallback((clientX: number, clientY: number) => {
+    if (!buttonRef.current) return
 
     const button = buttonRef.current
     const rect = button.getBoundingClientRect()
     const buttonCenterX = rect.left + rect.width / 2
     const buttonCenterY = rect.top + rect.height / 2
 
-    const mouseX = clientX
-    const mouseY = clientY
-
     const distance = Math.sqrt(
-      Math.pow(mouseX - buttonCenterX, 2) + Math.pow(mouseY - buttonCenterY, 2)
+      Math.pow(clientX - buttonCenterX, 2) + Math.pow(clientY - buttonCenterY, 2)
     )
 
-    // Solo activar cuando el cursor está MUY cerca (80px en desktop, 60px en móvil)
     const threshold = window.innerWidth < 768 ? 60 : 80
     const activationDistance = window.innerWidth < 768 ? 100 : 120
-    
+
     if (distance < activationDistance) {
       setIsNearCursor(true)
-      
+
       if (distance < threshold) {
-        setPosition((currentPosition) => {
-          const angle = Math.atan2(mouseY - buttonCenterY, mouseX - buttonCenterX)
-          // Reducir la velocidad de repulsión (más suave)
-          const repelDistance = (threshold - distance) * 0.3 * (1 + attempts * 0.1)
-          
-          const newX = currentPosition.x - Math.cos(angle) * repelDistance
-          const newY = currentPosition.y - Math.sin(angle) * repelDistance
+        const angle = Math.atan2(clientY - buttonCenterY, clientX - buttonCenterX)
+        
+        // Fuerza agresiva al inicio, aumenta con intentos
+        const baseForce = 200 + attempts * 50
+        const forceMultiplier = (threshold - distance) / threshold
+        const totalForce = baseForce * forceMultiplier * (1 + attempts * 0.3)
 
-          // Limitar dentro de un área visible (no se pierde)
-          const maxOffset = window.innerWidth < 768 ? 100 : 150
-          const finalX = Math.max(-maxOffset, Math.min(maxOffset, newX))
-          const finalY = Math.max(-maxOffset, Math.min(maxOffset, newY))
+        const currentX = x.get()
+        const currentY = y.get()
 
-          if (distance < 50) {
-            setAttempts((prev) => prev + 1)
-          }
+        // Calcular nueva posición con fuerza agresiva
+        const newX = currentX - Math.cos(angle) * totalForce
+        const newY = currentY - Math.sin(angle) * totalForce
 
-          return {
-            x: finalX,
-            y: finalY,
-          }
-        })
+        // Límites de la pantalla con rebote
+        const maxX = (window.innerWidth - rect.width) / 2
+        const maxY = (window.innerHeight - rect.height) / 2
+        const minX = -(window.innerWidth - rect.width) / 2
+        const minY = -(window.innerHeight - rect.height) / 2
+
+        // Aplicar con rebote en bordes
+        let finalX = newX
+        let finalY = newY
+
+        if (newX > maxX) {
+          finalX = maxX - (newX - maxX) * 0.7 // Rebote con pérdida de energía
+          setVelocity(prev => ({ ...prev, x: -prev.x * 0.7 }))
+        } else if (newX < minX) {
+          finalX = minX + (minX - newX) * 0.7
+          setVelocity(prev => ({ ...prev, x: -prev.x * 0.7 }))
+        }
+
+        if (newY > maxY) {
+          finalY = maxY - (newY - maxY) * 0.7
+          setVelocity(prev => ({ ...prev, y: -prev.y * 0.7 }))
+        } else if (newY < minY) {
+          finalY = minY + (minY - newY) * 0.7
+          setVelocity(prev => ({ ...prev, y: -prev.y * 0.7 }))
+        }
+
+        // Limitar dentro de los bordes
+        finalX = Math.max(minX, Math.min(maxX, finalX))
+        finalY = Math.max(minY, Math.min(maxY, finalY))
+
+        x.set(finalX)
+        y.set(finalY)
+
+        if (distance < 50) {
+          setAttempts(prev => prev + 1)
+        }
       }
     } else {
       setIsNearCursor(false)
     }
-  }, [attempts])
-
-  const handleMouseMove = (e: React.MouseEvent | MouseEvent) => {
-    if ('clientX' in e) {
-      calculatePosition(e.clientX, e.clientY)
-    }
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches && e.touches.length > 0) {
-      calculatePosition(e.touches[0].clientX, e.touches[0].clientY)
-    }
-  }
+  }, [attempts, x, y])
 
   const handleClick = () => {
-    // Aumentar repulsión al hacer clic, pero más suave
-    setAttempts((prev) => prev + 1)
+    setAttempts(prev => prev + 1)
     if (!buttonRef.current) return
 
-    // Rebote suave hacia una dirección aleatoria
     const randomAngle = Math.random() * Math.PI * 2
-    const bounceDistance = 80 + attempts * 20 // Más suave
+    const bounceForce = 300 + attempts * 100 // Muy agresivo
 
-    const newX = position.x + Math.cos(randomAngle) * bounceDistance
-    const newY = position.y + Math.sin(randomAngle) * bounceDistance
+    const currentX = x.get()
+    const currentY = y.get()
 
-    // Limitar dentro del área visible
-    const maxOffset = window.innerWidth < 768 ? 100 : 150
-    setPosition({
-      x: Math.max(-maxOffset, Math.min(maxOffset, newX)),
-      y: Math.max(-maxOffset, Math.min(maxOffset, newY)),
-    })
+    const newX = currentX + Math.cos(randomAngle) * bounceForce
+    const newY = currentY + Math.sin(randomAngle) * bounceForce
+
+    const rect = buttonRef.current.getBoundingClientRect()
+    const maxX = (window.innerWidth - rect.width) / 2
+    const maxY = (window.innerHeight - rect.height) / 2
+    const minX = -(window.innerWidth - rect.width) / 2
+    const minY = -(window.innerHeight - rect.height) / 2
+
+    x.set(Math.max(minX, Math.min(maxX, newX)))
+    y.set(Math.max(minY, Math.min(maxY, newY)))
   }
+
+  // Regresar al centro cuando no hay interacción
+  useEffect(() => {
+    if (!isNearCursor) {
+      const returnInterval = setInterval(() => {
+        const currentX = x.get()
+        const currentY = y.get()
+        const distance = Math.sqrt(currentX * currentX + currentY * currentY)
+
+        if (distance > 2) {
+          x.set(currentX * 0.85) // Desaceleración suave
+          y.set(currentY * 0.85)
+        } else {
+          x.set(0)
+          y.set(0)
+        }
+      }, 16) // ~60fps
+
+      return () => clearInterval(returnInterval)
+    }
+  }, [isNearCursor, x, y])
 
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
-      calculatePosition(e.clientX, e.clientY)
+      calculateRepulsion(e.clientX, e.clientY)
     }
     const handleGlobalTouchMove = (e: TouchEvent) => {
       e.preventDefault()
       if (e.touches && e.touches.length > 0) {
-        calculatePosition(e.touches[0].clientX, e.touches[0].clientY)
+        calculateRepulsion(e.touches[0].clientX, e.touches[0].clientY)
       }
     }
     const handleGlobalTouchStart = (e: TouchEvent) => {
       if (e.touches && e.touches.length > 0) {
-        calculatePosition(e.touches[0].clientX, e.touches[0].clientY)
+        calculateRepulsion(e.touches[0].clientX, e.touches[0].clientY)
       }
     }
 
@@ -174,7 +169,7 @@ export default function NoButton() {
       window.removeEventListener('touchmove', handleGlobalTouchMove)
       window.removeEventListener('touchstart', handleGlobalTouchStart)
     }
-  }, [calculatePosition])
+  }, [calculateRepulsion])
 
   return (
     <div 
@@ -186,15 +181,12 @@ export default function NoButton() {
         height: 'auto',
       }}
     >
-      <button
+      <motion.button
         ref={buttonRef}
         onClick={handleClick}
-        onMouseMove={handleMouseMove}
-        onTouchMove={handleTouchMove}
-        className="no-button"
         style={{
-          position: 'relative',
-          transform: `translate(${position.x}px, ${position.y}px)`,
+          x: springX,
+          y: springY,
           padding: 'clamp(1rem, 2.5vw, 1.5rem) clamp(2rem, 5vw, 3rem)',
           fontSize: 'clamp(0.8rem, 3vw, 1.5rem)',
           fontFamily: "'Press Start 2P', cursive",
@@ -205,17 +197,17 @@ export default function NoButton() {
           cursor: 'not-allowed',
           textTransform: 'uppercase',
           boxShadow: '0 6px 0 #666, 0 10px 15px rgba(0,0,0,0.2)',
-          transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
           zIndex: 5,
           userSelect: 'none',
           pointerEvents: 'auto',
           touchAction: 'none',
           minWidth: '100px',
           whiteSpace: 'nowrap',
+          position: 'relative',
         }}
       >
         NO
-      </button>
+      </motion.button>
     </div>
   )
 }

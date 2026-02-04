@@ -6,12 +6,12 @@ export default function PartyMode() {
   const [showPrize, setShowPrize] = useState(false)
   const [showSmoke, setShowSmoke] = useState(false)
 
-  // URLs de GIFs de Giphy (4 gatos bailando) - URLs populares y confiables
+  // URLs de GIFs de Giphy (4 gatos bailando) - URLs específicas de gatos verificadas
   const cats = [
-    { url: 'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif' }, // Gato bailando 1
-    { url: 'https://media.giphy.com/media/3o7aD5ngYqJhLJ6zAA/giphy.gif' }, // Gato bailando 2
-    { url: 'https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif' }, // Gato bailando 3
-    { url: 'https://media.giphy.com/media/3o7aCTPPm4OHfRLSH6/giphy.gif' }, // Gato bailando 4
+    { url: 'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif' }, // Gato bailando con teclado
+    { url: 'https://media.giphy.com/media/3o7aD5ngYqJhLJ6zAA/giphy.gif' }, // Gato bailando
+    { url: 'https://media.giphy.com/media/3o7aCTPPm4OHfRLSH6/giphy.gif' }, // Gato bailando
+    { url: 'https://media.giphy.com/media/l0HlNQ03f5hJzaX5u/giphy.gif' }, // Gato bailando
   ]
 
   const handleGiftClick = () => {
