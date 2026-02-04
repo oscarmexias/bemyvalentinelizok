@@ -25,7 +25,7 @@ export default function PartyMode() {
           
           if (place) {
             setPrizeInfo({
-              drink: drinkType,
+              drink: place.drinkType || drinkType,
               place: place.name,
               distance: place.distance
             })
