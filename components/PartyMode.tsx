@@ -6,13 +6,16 @@ import { findMatchaChaiPlace, getRandomDrink } from '@/lib/placesService'
 export default function PartyMode() {
   const [showPrize, setShowPrize] = useState(false)
   const [showSmoke, setShowSmoke] = useState(false)
+  const [showExplosion, setShowExplosion] = useState(false)
   const [prizeInfo, setPrizeInfo] = useState<{ drink: string; place: string; distance: number } | null>(null)
   const [loading, setLoading] = useState(false)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
 
   // Emojis de animales bailando
   const animals = ['🐱', '🐶', '🐰', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🦊', '🐺', '🐗', '🐴', '🦄', '🐝', '🦋', '🐛', '🐞', '🐜', '🦟', '🦗', '🕷️', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🦬', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🐈', '🐓', '🦃', '🦤', '🦚', '🦜', '🦢', '🦩', '🕊️', '🐇', '🦝', '🦨', '🦡', '🦫', '🦦', '🦥', '🐁', '🐀', '🐿️', '🦔']
 
   const drinkType = getRandomDrink()
+  const drinkEmoji = drinkType === 'matcha' ? '🍵' : '☕'
 
   useEffect(() => {
     // Obtener ubicación y buscar lugar cuando se monta el componente
@@ -21,6 +24,7 @@ export default function PartyMode() {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords
+          setUserLocation({ lat: latitude, lng: longitude })
           const place = await findMatchaChaiPlace(latitude, longitude)
           
           if (place) {
@@ -56,8 +60,27 @@ export default function PartyMode() {
   const handleGiftClick = () => {
     setShowSmoke(true)
     setTimeout(() => {
+      setShowExplosion(true)
       setShowPrize(true)
+      // Detener explosión después de 2 segundos
+      setTimeout(() => {
+        setShowExplosion(false)
+      }, 2000)
     }, 800)
+  }
+
+  const handleTakeMeThere = () => {
+    if (prizeInfo && userLocation) {
+      // Abrir Google Maps con la ruta al lugar
+      const query = encodeURIComponent(prizeInfo.place)
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${query}&travelmode=walking`
+      window.open(url, '_blank')
+    } else if (prizeInfo) {
+      // Si no hay ubicación, buscar el lugar
+      const query = encodeURIComponent(prizeInfo.place)
+      const url = `https://www.google.com/maps/search/?api=1&query=${query}`
+      window.open(url, '_blank')
+    }
   }
 
   return (
@@ -76,22 +99,28 @@ export default function PartyMode() {
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
+        padding: 'clamp(1rem, 3vw, 2rem)',
       }}
     >
-      <h2
-        style={{
-          fontSize: 'clamp(1.5rem, 6vw, 3rem)',
-          color: 'var(--color-dark-red)',
-          textShadow: '4px 4px 0px var(--color-rose)',
-          marginBottom: '1rem',
-          textAlign: 'center',
-          animation: 'dance 1s ease-in-out infinite',
-          zIndex: 1001,
-          padding: '0 1rem',
-        }}
-      >
-        🎉 YAY! 🎉
-      </h2>
+      {/* Título YAY - oculto después de revelar premio */}
+      {!showPrize && (
+        <h2
+          style={{
+            fontSize: 'clamp(1.5rem, 6vw, 3rem)',
+            color: 'var(--color-dark-red)',
+            textShadow: '4px 4px 0px var(--color-rose)',
+            marginBottom: '1rem',
+            textAlign: 'center',
+            animation: 'dance 1s ease-in-out infinite',
+            zIndex: 1001,
+            padding: '0 clamp(1rem, 4vw, 2rem)',
+            maxWidth: '100%',
+            wordWrap: 'break-word',
+          }}
+        >
+          🎉 YAY! 🎉
+        </h2>
+      )}
 
       {/* Icono de regalo animado en el centro con "OPEN ME" */}
       {!showPrize && (
@@ -131,6 +160,7 @@ export default function PartyMode() {
               textShadow: '3px 3px 0px var(--color-rose)',
               marginTop: '1rem',
               animation: 'pulse 1.5s ease-in-out infinite',
+              padding: '0 1rem',
             }}
           >
             OPEN ME
@@ -139,7 +169,7 @@ export default function PartyMode() {
       )}
 
       {/* Animación de humo */}
-      {showSmoke && (
+      {showSmoke && !showPrize && (
         <div
           style={{
             position: 'absolute',
@@ -170,6 +200,57 @@ export default function PartyMode() {
         </div>
       )}
 
+      {/* Explosión de emojis matcha/chai */}
+      {showExplosion && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1005,
+            pointerEvents: 'none',
+          }}
+        >
+          {[...Array(50)].map((_, i) => {
+            const angle = (i / 50) * Math.PI * 2
+            const distance = 200 + (i % 10) * 30
+            const x = Math.cos(angle) * distance
+            const y = Math.sin(angle) * distance
+            const rotation = i * 15
+            
+            return (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute',
+                  fontSize: 'clamp(2rem, 5vw, 4rem)',
+                  left: '50%',
+                  top: '50%',
+                  animation: `explode${i} 2s ease-out forwards`,
+                  animationDelay: `${i * 0.02}s`,
+                  transform: `translate(-50%, -50%)`,
+                }}
+              >
+                {drinkEmoji}
+                <style jsx>{`
+                  @keyframes explode${i} {
+                    0% {
+                      opacity: 1;
+                      transform: translate(-50%, -50%) scale(1) rotate(0deg);
+                    }
+                    100% {
+                      opacity: 0.2;
+                      transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(0.3) rotate(${rotation}deg);
+                    }
+                  }
+                `}</style>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* Premio revelado */}
       {showPrize && prizeInfo && (
         <div
@@ -178,9 +259,12 @@ export default function PartyMode() {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            zIndex: 1004,
+            zIndex: 1006,
             textAlign: 'center',
             animation: 'revealPrize 0.5s ease-out',
+            width: '90%',
+            maxWidth: '600px',
+            padding: '0 clamp(1rem, 4vw, 2rem)',
           }}
         >
           <div
@@ -190,6 +274,8 @@ export default function PartyMode() {
               textShadow: '3px 3px 0px var(--color-rose)',
               marginBottom: '1.5rem',
               fontFamily: "'Press Start 2P', cursive",
+              padding: '0 1rem',
+              wordWrap: 'break-word',
             }}
           >
             PRIZE OF THE DAY
@@ -207,48 +293,110 @@ export default function PartyMode() {
               textTransform: 'uppercase',
               animation: 'bounceBox 0.6s ease-out',
               lineHeight: '1.6',
+              marginBottom: '1.5rem',
+              wordWrap: 'break-word',
             }}
           >
             You won a {prizeInfo.drink} in {prizeInfo.place}. It&apos;s just {prizeInfo.distance}km
           </div>
+          <button
+            onClick={handleTakeMeThere}
+            style={{
+              padding: 'clamp(1rem, 2.5vw, 1.5rem) clamp(2rem, 5vw, 3rem)',
+              fontSize: 'clamp(0.8rem, 2.5vw, 1.2rem)',
+              fontFamily: "'Press Start 2P', cursive",
+              backgroundColor: 'var(--color-dark-red)',
+              color: 'var(--color-cream)',
+              border: '4px solid var(--color-red)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              textTransform: 'uppercase',
+              boxShadow: '0 6px 0 var(--color-red), 0 10px 20px rgba(0,0,0,0.3)',
+              transition: 'all 0.1s ease',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = 'translateY(3px)'
+              e.currentTarget.style.boxShadow = '0 3px 0 var(--color-red), 0 5px 15px rgba(0,0,0,0.3)'
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 6px 0 var(--color-red), 0 10px 20px rgba(0,0,0,0.3)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 6px 0 var(--color-red), 0 10px 20px rgba(0,0,0,0.3)'
+            }}
+          >
+            TAKE ME THERE
+          </button>
         </div>
       )}
 
-      {/* Emojis de animales bailando por toda la pantalla */}
-      <div style={{ position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none', zIndex: 999 }}>
-        {animals.slice(0, 30).map((animal, index) => (
-          <div
-            key={index}
-            style={{
-              position: 'absolute',
-              fontSize: 'clamp(2rem, 5vw, 4rem)',
-              left: `${(index * 7) % 100}%`,
-              top: `${(index * 11) % 100}%`,
-              animation: `floatAnimal ${3 + (index % 3)}s ease-in-out infinite`,
-              animationDelay: `${index * 0.1}s`,
-              filter: 'drop-shadow(4px 4px 8px rgba(0,0,0,0.2))',
-            }}
-          >
-            {animal}
-          </div>
-        ))}
-      </div>
+      {/* Emojis de animales bailando por toda la pantalla - ocultos después de revelar premio */}
+      {!showPrize && (
+        <div style={{ position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none', zIndex: 999 }}>
+          {animals.slice(0, 30).map((animal, index) => (
+            <div
+              key={index}
+              style={{
+                position: 'absolute',
+                fontSize: 'clamp(2rem, 5vw, 4rem)',
+                left: `${(index * 7) % 100}%`,
+                top: `${(index * 11) % 100}%`,
+                animation: `floatAnimal ${3 + (index % 3)}s ease-in-out infinite`,
+                animationDelay: `${index * 0.1}s`,
+                filter: 'drop-shadow(4px 4px 8px rgba(0,0,0,0.2))',
+              }}
+            >
+              {animal}
+            </div>
+          ))}
+        </div>
+      )}
 
-      <p
-        style={{
-          fontSize: 'clamp(0.8rem, 3vw, 1.5rem)',
-          color: 'var(--color-dark-red)',
-          textShadow: '2px 2px 0px var(--color-rose)',
-          marginTop: 'auto',
-          marginBottom: '2rem',
-          textAlign: 'center',
-          animation: 'dance 1.5s ease-in-out infinite',
-          zIndex: 1001,
-          padding: '0 1rem',
-        }}
-      >
-        ¡FELIZ SAN VALENTÍN! 💕
-      </p>
+      {/* Emojis flotantes después de la explosión */}
+      {showPrize && !showExplosion && (
+        <div style={{ position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none', zIndex: 998 }}>
+          {[...Array(20)].map((_, index) => (
+            <div
+              key={index}
+              style={{
+                position: 'absolute',
+                fontSize: 'clamp(2rem, 5vw, 4rem)',
+                left: `${(index * 15) % 100}%`,
+                top: `${(index * 20) % 100}%`,
+                animation: `floatAnimal ${3 + (index % 3)}s ease-in-out infinite`,
+                animationDelay: `${index * 0.1}s`,
+                filter: 'drop-shadow(4px 4px 8px rgba(0,0,0,0.2))',
+              }}
+            >
+              {drinkEmoji}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Texto inferior - oculto después de revelar premio */}
+      {!showPrize && (
+        <p
+          style={{
+            fontSize: 'clamp(0.8rem, 3vw, 1.5rem)',
+            color: 'var(--color-dark-red)',
+            textShadow: '2px 2px 0px var(--color-rose)',
+            marginTop: 'auto',
+            marginBottom: '2rem',
+            textAlign: 'center',
+            animation: 'dance 1.5s ease-in-out infinite',
+            zIndex: 1001,
+            padding: '0 clamp(1rem, 4vw, 2rem)',
+            maxWidth: '100%',
+            wordWrap: 'break-word',
+          }}
+        >
+          ¡FELIZ SAN VALENTÍN! 💕
+        </p>
+      )}
 
       <style jsx>{`
         @keyframes dance {
@@ -300,6 +448,7 @@ export default function PartyMode() {
             transform: translate(-20px, -10px) rotate(3deg);
           }
         }
+
 
         @keyframes smoke {
           0% {
