@@ -17,6 +17,44 @@ export default function PartyMode() {
   const drinkType = getRandomDrink()
   const drinkEmoji = drinkType === 'matcha' ? '🍵' : '☕'
 
+  // Inyectar animaciones de explosión dinámicamente
+  useEffect(() => {
+    if (showExplosion) {
+      const styleId = 'explosion-animations'
+      let styleElement = document.getElementById(styleId)
+      
+      if (!styleElement) {
+        styleElement = document.createElement('style')
+        styleElement.id = styleId
+        document.head.appendChild(styleElement)
+      }
+
+      const animations = [...Array(50)].map((_, i) => {
+        const angle = (i / 50) * Math.PI * 2
+        const distance = 200 + (i % 10) * 30
+        const x = Math.cos(angle) * distance
+        const y = Math.sin(angle) * distance
+        const rotation = i * 15
+        return `@keyframes explodeEmoji${i} {
+          0% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1) rotate(0deg);
+          }
+          100% {
+            opacity: 0.2;
+            transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(0.3) rotate(${rotation}deg);
+          }
+        }`
+      }).join('\n')
+
+      styleElement.textContent = animations
+
+      return () => {
+        // No remover el style para que las animaciones funcionen
+      }
+    }
+  }, [showExplosion])
+
   useEffect(() => {
     // Obtener ubicación y buscar lugar cuando se monta el componente
     if (navigator.geolocation) {
@@ -212,42 +250,22 @@ export default function PartyMode() {
             pointerEvents: 'none',
           }}
         >
-          {[...Array(50)].map((_, i) => {
-            const angle = (i / 50) * Math.PI * 2
-            const distance = 200 + (i % 10) * 30
-            const x = Math.cos(angle) * distance
-            const y = Math.sin(angle) * distance
-            const rotation = i * 15
-            
-            return (
-              <div
-                key={i}
-                style={{
-                  position: 'absolute',
-                  fontSize: 'clamp(2rem, 5vw, 4rem)',
-                  left: '50%',
-                  top: '50%',
-                  animation: `explode${i} 2s ease-out forwards`,
-                  animationDelay: `${i * 0.02}s`,
-                  transform: `translate(-50%, -50%)`,
-                }}
-              >
-                {drinkEmoji}
-                <style jsx>{`
-                  @keyframes explode${i} {
-                    0% {
-                      opacity: 1;
-                      transform: translate(-50%, -50%) scale(1) rotate(0deg);
-                    }
-                    100% {
-                      opacity: 0.2;
-                      transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(0.3) rotate(${rotation}deg);
-                    }
-                  }
-                `}</style>
-              </div>
-            )
-          })}
+          {[...Array(50)].map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                fontSize: 'clamp(2rem, 5vw, 4rem)',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                animation: `explodeEmoji${i} 2s ease-out forwards`,
+                animationDelay: `${i * 0.02}s`,
+              }}
+            >
+              {drinkEmoji}
+            </div>
+          ))}
         </div>
       )}
 
@@ -448,6 +466,7 @@ export default function PartyMode() {
             transform: translate(-20px, -10px) rotate(3deg);
           }
         }
+
 
 
         @keyframes smoke {
