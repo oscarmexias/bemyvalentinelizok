@@ -18,12 +18,18 @@ Una página web divertida e interactiva para el Día de San Valentín con estilo
 npm install
 ```
 
-2. Ejecuta el servidor de desarrollo:
+2. Configura la API key de Google Maps (opcional, tiene fallback):
+   - Crea un archivo `.env.local` en la raíz del proyecto
+   - Agrega: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=tu_api_key_aqui`
+   - Obtén tu API key en: https://console.cloud.google.com/google/maps-apis
+   - Habilita: Places API, Geocoding API
+
+3. Ejecuta el servidor de desarrollo:
 ```bash
 npm run dev
 ```
 
-3. Abre [http://localhost:3000](http://localhost:3000) en tu navegador
+4. Abre [http://localhost:3000](http://localhost:3000) en tu navegador
 
 ## 📦 Despliegue en Vercel
 

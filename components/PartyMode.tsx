@@ -1,18 +1,57 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { findMatchaChaiPlace, getRandomDrink } from '@/lib/placesService'
 
 export default function PartyMode() {
   const [showPrize, setShowPrize] = useState(false)
   const [showSmoke, setShowSmoke] = useState(false)
+  const [prizeInfo, setPrizeInfo] = useState<{ drink: string; place: string; distance: number } | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  // URLs de GIFs de Giphy (4 gatos bailando) - URLs específicas de gatos verificadas y funcionando
-  const cats = [
-    { url: 'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif' }, // Gato bailando con teclado
-    { url: 'https://media.giphy.com/media/3o7aD5ngYqJhLJ6zAA/giphy.gif' }, // Gato bailando
-    { url: 'https://media.giphy.com/media/3o7aCTPPm4OHfRLSH6/giphy.gif' }, // Gato bailando
-    { url: 'https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif' }, // Gato bailando
-  ]
+  // Emojis de animales bailando
+  const animals = ['🐱', '🐶', '🐰', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🦊', '🐺', '🐗', '🐴', '🦄', '🐝', '🦋', '🐛', '🐞', '🐜', '🦟', '🦗', '🕷️', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🦬', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🐈', '🐓', '🦃', '🦤', '🦚', '🦜', '🦢', '🦩', '🕊️', '🐇', '🦝', '🦨', '🦡', '🦫', '🦦', '🦥', '🐁', '🐀', '🐿️', '🦔']
+
+  const drinkType = getRandomDrink()
+
+  useEffect(() => {
+    // Obtener ubicación y buscar lugar cuando se monta el componente
+    if (navigator.geolocation) {
+      setLoading(true)
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords
+          const place = await findMatchaChaiPlace(latitude, longitude)
+          
+          if (place) {
+            setPrizeInfo({
+              drink: drinkType,
+              place: place.name,
+              distance: place.distance
+            })
+          }
+          setLoading(false)
+        },
+        (error) => {
+          console.error('Error obteniendo ubicación:', error)
+          // Fallback sin ubicación
+          setPrizeInfo({
+            drink: drinkType,
+            place: 'Local Café',
+            distance: 0.5
+          })
+          setLoading(false)
+        }
+      )
+    } else {
+      // Fallback si no hay geolocalización
+      setPrizeInfo({
+        drink: drinkType,
+        place: 'Local Café',
+        distance: 0.5
+      })
+    }
+  }, [])
 
   const handleGiftClick = () => {
     setShowSmoke(true)
@@ -31,7 +70,7 @@ export default function PartyMode() {
         width: '100vw',
         height: '100vh',
         zIndex: 1000,
-        background: '#FFF8DC', // Crema amarillo sutil
+        background: '#FFF8DC',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -54,7 +93,7 @@ export default function PartyMode() {
         🎉 YAY! 🎉
       </h2>
 
-      {/* Icono de regalo animado en el centro */}
+      {/* Icono de regalo animado en el centro con "OPEN ME" */}
       {!showPrize && (
         <div
           onClick={handleGiftClick}
@@ -65,8 +104,7 @@ export default function PartyMode() {
             transform: 'translate(-50%, -50%)',
             cursor: 'pointer',
             zIndex: 1002,
-            fontSize: 'clamp(4rem, 15vw, 8rem)',
-            animation: 'bounceGift 1s ease-in-out infinite',
+            textAlign: 'center',
             filter: 'drop-shadow(8px 8px 12px rgba(0,0,0,0.3))',
             transition: 'transform 0.2s ease',
           }}
@@ -77,7 +115,26 @@ export default function PartyMode() {
             e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)'
           }}
         >
-          🎁
+          <div
+            style={{
+              fontSize: 'clamp(4rem, 15vw, 8rem)',
+              animation: 'bounceGift 1s ease-in-out infinite',
+            }}
+          >
+            🎁
+          </div>
+          <div
+            style={{
+              fontSize: 'clamp(1rem, 3vw, 1.5rem)',
+              fontFamily: "'Press Start 2P', cursive",
+              color: 'var(--color-dark-red)',
+              textShadow: '3px 3px 0px var(--color-rose)',
+              marginTop: '1rem',
+              animation: 'pulse 1.5s ease-in-out infinite',
+            }}
+          >
+            OPEN ME
+          </div>
         </div>
       )}
 
@@ -114,7 +171,7 @@ export default function PartyMode() {
       )}
 
       {/* Premio revelado */}
-      {showPrize && (
+      {showPrize && prizeInfo && (
         <div
           style={{
             position: 'absolute',
@@ -145,45 +202,35 @@ export default function PartyMode() {
               padding: 'clamp(1.5rem, 4vw, 3rem)',
               boxShadow: '0 10px 0 var(--color-dark-red), 0 15px 30px rgba(0,0,0,0.4)',
               fontFamily: "'Press Start 2P', cursive",
-              fontSize: 'clamp(0.8rem, 3vw, 1.5rem)',
+              fontSize: 'clamp(0.7rem, 2.5vw, 1.2rem)',
               color: 'var(--color-cream)',
               textTransform: 'uppercase',
               animation: 'bounceBox 0.6s ease-out',
+              lineHeight: '1.6',
             }}
           >
-            GANASTE UN BESHO! 💋
+            You won a {prizeInfo.drink} in {prizeInfo.place}. It&apos;s just {prizeInfo.distance}km
           </div>
         </div>
       )}
-      
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '2rem',
-          justifyContent: 'center',
-          alignItems: 'center',
-          width: '100%',
-          maxWidth: '1200px',
-          padding: '2rem',
-          marginTop: showPrize ? '20rem' : '0',
-          transition: 'margin-top 0.5s ease',
-        }}
-      >
-        {cats.map((cat, index) => (
-          <img
+
+      {/* Emojis de animales bailando por toda la pantalla */}
+      <div style={{ position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none', zIndex: 999 }}>
+        {animals.slice(0, 30).map((animal, index) => (
+          <div
             key={index}
-            src={cat.url}
-            alt="Gato bailando"
             style={{
-              width: 'clamp(150px, 20vw, 250px)',
-              height: 'auto',
-              animation: `dance ${1 + index * 0.2}s ease-in-out infinite`,
+              position: 'absolute',
+              fontSize: 'clamp(2rem, 5vw, 4rem)',
+              left: `${(index * 7) % 100}%`,
+              top: `${(index * 11) % 100}%`,
+              animation: `floatAnimal ${3 + (index % 3)}s ease-in-out infinite`,
               animationDelay: `${index * 0.1}s`,
               filter: 'drop-shadow(4px 4px 8px rgba(0,0,0,0.2))',
-              borderRadius: '10px',
             }}
-          />
+          >
+            {animal}
+          </div>
         ))}
       </div>
 
@@ -192,7 +239,8 @@ export default function PartyMode() {
           fontSize: 'clamp(0.8rem, 3vw, 1.5rem)',
           color: 'var(--color-dark-red)',
           textShadow: '2px 2px 0px var(--color-rose)',
-          marginTop: '3rem',
+          marginTop: 'auto',
+          marginBottom: '2rem',
           textAlign: 'center',
           animation: 'dance 1.5s ease-in-out infinite',
           zIndex: 1001,
@@ -220,10 +268,36 @@ export default function PartyMode() {
 
         @keyframes bounceGift {
           0%, 100% {
-            transform: translate(-50%, -50%) translateY(0);
+            transform: translateY(0);
           }
           50% {
-            transform: translate(-50%, -50%) translateY(-20px);
+            transform: translateY(-20px);
+          }
+        }
+
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.8;
+            transform: scale(1.05);
+          }
+        }
+
+        @keyframes floatAnimal {
+          0%, 100% {
+            transform: translate(0, 0) rotate(0deg);
+          }
+          25% {
+            transform: translate(20px, -20px) rotate(5deg);
+          }
+          50% {
+            transform: translate(-10px, -30px) rotate(-5deg);
+          }
+          75% {
+            transform: translate(-20px, -10px) rotate(3deg);
           }
         }
 
